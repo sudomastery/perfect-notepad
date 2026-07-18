@@ -1,7 +1,7 @@
 %global debug_package %{nil}
 
 Name:           pnotepad
-Version:        0.1.0
+Version:        0.1.1
 Release:        1%{?dist}
 Summary:        Fast native notepad for KDE with automatic session restore
 License:        GPL-3.0-or-later
@@ -38,5 +38,8 @@ install -Dm644 data/icons/pnote.png %{buildroot}%{_datadir}/icons/hicolor/1024x1
 %{_datadir}/icons/hicolor/1024x1024/apps/pnote.png
 
 %changelog
+* Sat Jul 18 2026 sudomastery <koigu80@gmail.com> - 0.1.1-1
+- Raise the existing window when files are opened from the terminal
+
 * Sat Jul 18 2026 sudomastery <koigu80@gmail.com> - 0.1.0-1
 - Initial package

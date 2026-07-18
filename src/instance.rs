@@ -13,14 +13,20 @@ fn socket_path() -> PathBuf {
         .join("pnote.sock")
 }
 
-/// Try to deliver `files` (JSON array of absolute paths) to a running
-/// instance. Returns true if one accepted; the caller should then exit.
-/// An empty list still gets sent so the running window is raised.
+/// Try to deliver `files` (absolute paths) to a running instance. Returns
+/// true if one accepted; the caller should then exit. An empty list still
+/// gets sent so the running window is raised. On Wayland the payload also
+/// carries an xdg-activation token so the compositor lets that window
+/// come to the front.
 pub fn send_to_existing(files: &[String]) -> bool {
     let Ok(mut stream) = UnixStream::connect(socket_path()) else {
         return false;
     };
-    let json = serde_json::to_string(files).unwrap_or_else(|_| "[]".into());
+    let token = crate::activation::request_token();
+    if std::env::var_os("PNOTE_DEBUG").is_some() {
+        eprintln!("pnote: activation token: {token:?}");
+    }
+    let json = serde_json::json!({ "files": files, "token": token }).to_string();
     stream.write_all(json.as_bytes()).is_ok()
 }
 

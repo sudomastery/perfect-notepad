@@ -123,6 +123,26 @@ struct SessionIndex {
     settings: HashMap<String, String>,
 }
 
+/// Split a handoff payload into the files JSON array and the optional
+/// activation token. Accepts both the current object form and the older
+/// bare-array form.
+fn parse_handoff(buf: &str) -> (String, Option<String>) {
+    if let Ok(value) = serde_json::from_str::<serde_json::Value>(buf) {
+        if value.is_object() {
+            let token = value
+                .get("token")
+                .and_then(|t| t.as_str())
+                .map(String::from);
+            let files = value
+                .get("files")
+                .cloned()
+                .unwrap_or_else(|| serde_json::json!([]));
+            return (files.to_string(), token);
+        }
+    }
+    (buf.to_string(), None)
+}
+
 fn session_dir() -> PathBuf {
     let dir = dirs::data_dir()
         .unwrap_or_else(|| PathBuf::from("."))
@@ -302,8 +322,17 @@ impl qobject::SessionManager {
                 if stream.read_to_string(&mut buf).is_err() {
                     continue;
                 }
+                let (files_json, token) = parse_handoff(&buf);
                 let _ = qt_thread.queue(move |qobject| {
-                    qobject.files_requested(QString::from(&buf));
+                    // Qt's requestActivate consumes this variable to prove
+                    // to the compositor that raising the window is allowed.
+                    if let Some(token) = &token {
+                        if std::env::var_os("PNOTE_DEBUG").is_some() {
+                            eprintln!("pnote: applying activation token {token}");
+                        }
+                        std::env::set_var("XDG_ACTIVATION_TOKEN", token);
+                    }
+                    qobject.files_requested(QString::from(&files_json));
                 });
             }
         });

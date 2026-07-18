@@ -1,3 +1,4 @@
+mod activation;
 mod instance;
 mod naming;
 mod session;
@@ -31,6 +32,7 @@ fn main() {
 
     // If an instance is already running, hand it our files and exit.
     if instance::send_to_existing(&session::resolve_cli_files()) {
+        activation::kwin_raise();
         return;
     }
     instance::bind();
