@@ -67,7 +67,7 @@ jobs:
           ./linuxdeploy-x86_64.AppImage --appdir AppDir \
             -e target/release/pnote \
             -d data/pnote.desktop \
-            -i data/icons/pnote.png \
+            -i data/icons/512/pnote.png \
             --plugin qt \
             --output appimage
           OUT=$(ls pnote*.AppImage | head -n1)
