@@ -1,6 +1,6 @@
 # pnotepad
 
-A simple, light and fast notepad for Linux. Native Rust with a Qt (QML) interface, no Electron, no web view. It starts instantly, idles at a tiny memory footprint, and stays out of your way.
+A simple, light and fast notepad for Linux, designed to feel like the Windows 11 Notepad: tabs, instant startup, and notes that are always autosaved without ever asking you to save. Native Rust with a Qt (QML) interface, no Electron, no web view. It starts instantly, idles at a tiny memory footprint, and stays out of your way.
 
 ![pnotepad in the Dark theme](data/screenshots/pnote-dark.png)
 
@@ -83,6 +83,17 @@ install -Dm755 target/release/pnote ~/.local/bin/pnote
 install -Dm644 data/pnote.desktop ~/.local/share/applications/pnote.desktop
 install -Dm644 data/icons/pnote.png ~/.local/share/icons/hicolor/1024x1024/apps/pnote.png
 ```
+
+## FAQ
+
+**Is there a Windows 11 Notepad for Linux?**
+Windows 11 Notepad itself is not available on Linux, but pnotepad is a native Linux notepad built around the same ideas: tabs, a clean minimal window, and automatic saving so closing the app never loses a note. It installs as an RPM on Fedora or as an AppImage on any distro.
+
+**How is this different from Gedit, Kate or KWrite?**
+Those are general text editors that ask you to save each file. pnotepad is a notepad: every tab is continuously autosaved and restored on the next launch, so it behaves like sticky notes with tabs. It is also a single small binary that starts instantly.
+
+**Does it work outside KDE?**
+Yes. It is a plain Qt application and runs on GNOME, XFCE and other desktops. The AppImage bundles everything it needs.
 
 ## Storage
 
