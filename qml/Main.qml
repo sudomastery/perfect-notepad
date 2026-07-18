@@ -83,6 +83,18 @@ ApplicationWindow {
 
     SessionManager { id: session }
 
+    Connections {
+        target: session
+        function onFilesRequested(pathsJson) {
+            var files = JSON.parse(pathsJson)
+            for (var i = 0; i < files.length; i++)
+                openPath(files[i])
+            root.show()
+            root.raise()
+            root.requestActivate()
+        }
+    }
+
     ListModel { id: tabsModel }
 
     Component.onCompleted: {
@@ -110,7 +122,12 @@ ApplicationWindow {
             newTab()
         else
             tabBar.currentIndex = Math.max(0, Math.min(data.active, tabsModel.count - 1))
+
+        var cli = JSON.parse(session.cli_files())
+        for (var j = 0; j < cli.length; j++)
+            openPath(cli[j])
         focusEditor()
+        session.start_server()
     }
 
     onClosing: saveAllTabs()
@@ -325,6 +342,24 @@ ApplicationWindow {
     function newTab() {
         addTab(session.new_id(), "Untitled", "", "", 0, false)
         tabBar.currentIndex = tabsModel.count - 1
+        focusEditor()
+    }
+
+    // Open a file by absolute path: focus its tab if already open,
+    // otherwise load it into a new tab.
+    function openPath(path) {
+        for (var i = 0; i < tabsModel.count; i++) {
+            if (tabsModel.get(i).filePath === path) {
+                tabBar.currentIndex = i
+                focusEditor()
+                return
+            }
+        }
+        var content = session.read_file(path)
+        addTab(session.new_id(), path.substring(path.lastIndexOf("/") + 1),
+               path, content, 0, false)
+        tabBar.currentIndex = tabsModel.count - 1
+        Qt.callLater(function() { saveTabAt(tabBar.currentIndex) })
         focusEditor()
     }
 
@@ -876,6 +911,48 @@ ApplicationWindow {
                                 if (ready && index === tabBar.currentIndex)
                                     root.updateStatus(textArea)
                             }
+
+                            // Bullet lists: typing "---" at the start of a line
+                            // becomes a bullet, Enter continues the list, and
+                            // Enter on an empty bullet ends it.
+                            Keys.onPressed: (event) => {
+                                if (selectedText.length > 0)
+                                    return
+
+                                if (event.text === "-") {
+                                    var pos = cursorPosition
+                                    var lineStart = text.lastIndexOf("\n", pos - 1) + 1
+                                    var before = text.substring(lineStart, pos)
+                                    if (/^\s*--$/.test(before)) {
+                                        var indent = before.length - 2
+                                        remove(lineStart + indent, pos)
+                                        insert(lineStart + indent, "• ")
+                                        cursorPosition = lineStart + indent + 2
+                                        event.accepted = true
+                                    }
+                                    return
+                                }
+
+                                if ((event.key === Qt.Key_Return || event.key === Qt.Key_Enter)
+                                        && event.modifiers === Qt.NoModifier) {
+                                    var p = cursorPosition
+                                    var ls = text.lastIndexOf("\n", p - 1) + 1
+                                    var le = text.indexOf("\n", p)
+                                    if (le < 0)
+                                        le = text.length
+                                    var m = text.substring(ls, le).match(/^(\s*)• ?(.*)$/)
+                                    if (!m)
+                                        return
+                                    if (m[2].trim() === "") {
+                                        remove(ls, le)
+                                        cursorPosition = ls
+                                    } else {
+                                        insert(p, "\n" + m[1] + "• ")
+                                        cursorPosition = p + m[1].length + 3
+                                    }
+                                    event.accepted = true
+                                }
+                            }
                         }
                     }
 
@@ -1042,15 +1119,7 @@ ApplicationWindow {
         id: openDialog
         fileMode: FileDialog.OpenFile
         nameFilters: ["Text files (*.txt *.md *.log)", "All files (*)"]
-        onAccepted: {
-            var path = urlToPath(selectedFile)
-            var content = session.read_file(path)
-            addTab(session.new_id(), path.substring(path.lastIndexOf("/") + 1),
-                   path, content, 0, false)
-            tabBar.currentIndex = tabsModel.count - 1
-            Qt.callLater(function() { saveTabAt(tabBar.currentIndex) })
-            focusEditor()
-        }
+        onAccepted: openPath(urlToPath(selectedFile))
     }
 
     FileDialog {

@@ -5,6 +5,10 @@ edition = "2021"
 description = "A fast, native notepad for KDE with automatic session restore"
 license = "GPL-3.0-or-later"
 
+[[bin]]
+name = "pnote"
+path = "src/main.rs"
+
 [dependencies]
 cxx = "1"
 cxx-qt = "0.7"

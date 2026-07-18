@@ -1,0 +1,11 @@
+[Desktop Entry]
+Type=Application
+Name=pnote
+GenericName=Notepad
+Comment=Fast native notepad with automatic session restore
+Exec=pnote %F
+Icon=pnote
+Terminal=false
+Categories=Utility;TextEditor;Qt;KDE;
+MimeType=text/plain;text/markdown;
+StartupWMClass=pnote

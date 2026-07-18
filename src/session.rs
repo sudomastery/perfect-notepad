@@ -3,6 +3,7 @@
 
 use std::collections::HashMap;
 use std::fs;
+use std::pin::Pin;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicU32, Ordering};
 
@@ -45,6 +46,19 @@ pub mod qobject {
         fn new_id(self: &SessionManager) -> QString;
 
         #[qinvokable]
+        fn cli_files(self: &SessionManager) -> QString;
+
+        #[qinvokable]
+        fn start_server(self: &SessionManager);
+
+        /// Emitted on the Qt thread when another launch hands us its file
+        /// list. Carries a JSON array of absolute paths (possibly empty,
+        /// meaning just raise the window).
+        #[qsignal]
+        #[cxx_name = "filesRequested"]
+        fn files_requested(self: Pin<&mut SessionManager>, paths_json: QString);
+
+        #[qinvokable]
         fn read_file(self: &SessionManager, path: &QString) -> QString;
 
         #[qinvokable]
@@ -65,9 +79,28 @@ pub mod qobject {
         #[qinvokable]
         fn set_setting(self: &SessionManager, key: &QString, value: &QString);
     }
+
+    impl cxx_qt::Threading for SessionManager {}
 }
 
 use cxx_qt_lib::QString;
+
+/// Files passed on the command line, resolved to absolute paths.
+pub fn resolve_cli_files() -> Vec<String> {
+    let cwd = std::env::current_dir().unwrap_or_default();
+    std::env::args()
+        .skip(1)
+        .filter(|a| !a.starts_with('-'))
+        .map(|a| {
+            let p = PathBuf::from(&a);
+            let abs = if p.is_absolute() { p } else { cwd.join(p) };
+            abs.canonicalize()
+                .unwrap_or(abs)
+                .to_string_lossy()
+                .into_owned()
+        })
+        .collect()
+}
 
 #[derive(Default)]
 pub struct SessionManagerRust {}
@@ -243,6 +276,37 @@ impl qobject::SessionManager {
             .unwrap_or(0);
         let n = COUNTER.fetch_add(1, Ordering::Relaxed);
         QString::from(&format!("{nanos:x}-{n:x}"))
+    }
+
+    /// Files passed on the command line, resolved to absolute paths, as a
+    /// JSON array. Nonexistent files are kept so they open as empty tabs
+    /// that will be created on save.
+    pub fn cli_files(&self) -> QString {
+        let files = resolve_cli_files();
+        QString::from(&serde_json::to_string(&files).unwrap_or_else(|_| "[]".into()))
+    }
+
+    /// Hand off the instance socket to a background thread that forwards
+    /// each incoming file list to QML as a filesRequested signal.
+    pub fn start_server(&self) {
+        use cxx_qt::Threading;
+        let Some(listener) = crate::instance::take_listener() else {
+            return;
+        };
+        let qt_thread = self.qt_thread();
+        std::thread::spawn(move || {
+            use std::io::Read;
+            for stream in listener.incoming() {
+                let Ok(mut stream) = stream else { continue };
+                let mut buf = String::new();
+                if stream.read_to_string(&mut buf).is_err() {
+                    continue;
+                }
+                let _ = qt_thread.queue(move |qobject| {
+                    qobject.files_requested(QString::from(&buf));
+                });
+            }
+        });
     }
 
     pub fn read_file(&self, path: &QString) -> QString {

@@ -19,7 +19,25 @@ sudo dnf install gcc-c++ qt6-qtbase-devel qt6-qtdeclarative-devel kf6-qqc2-deskt
 cargo build --release
 ```
 
-The binary is at `target/release/pnotepad`.
+The binary is at `target/release/pnote`.
+
+## Usage
+
+```
+pnote                 # open the app, restoring the previous session
+pnote notes.txt       # open a file (created on save if it does not exist)
+pnote a.txt b.md      # open several files as tabs
+pnote --help          # show CLI help
+```
+
+## Install
+
+```
+cargo build --release
+install -Dm755 target/release/pnote ~/.local/bin/pnote
+install -Dm644 data/pnote.desktop ~/.local/share/applications/pnote.desktop
+install -Dm644 data/icons/pnote.png ~/.local/share/icons/hicolor/1024x1024/apps/pnote.png
+```
 
 ## Storage
 
